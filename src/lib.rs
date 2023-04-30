@@ -78,6 +78,9 @@ pub trait LayerIndex: Eq + Hash + Component + Clone + Debug {
     /// that the *actual* z-value may be up to `layer.as_z_coordinate() <= z <
     /// layer.as_z_coordinate() + 1.0`, since y-sorting is done by adding to
     /// the z-axis. So your z-values should always be at least 1.0 apart.
+    ///
+    /// With the default Bevy camera settings, your return values from this
+    /// function should be between 0 and 999.0, since the camera is at z = 1000.0.
     fn as_z_coordinate(&self) -> f32;
 }
 

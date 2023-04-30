@@ -9,12 +9,13 @@ The z-coordinate isn't relevant for things like distance or normalization. The f
 ```rust
 use bevy::prelude::*;
 
-/// Get a unit vector pointing from the position of `source` to `target`, or zero if they're close.
+/// Get a unit vector pointing from the position of `source` to `target`, or
+/// zero if they're close.
 fn get_normal_direction(query: Query<&GlobalTransform>, source: Entity, target: Entity) -> Vec2 {
-  let from_pos = query.get(source).unwrap().translation();
-  let to_pos = query.get(target).unwrap().translation();
-  (from_pos - to_pos).normalize_or_zero().truncate()
-}  
+    let from_pos = query.get(source).unwrap().translation();
+    let to_pos = query.get(target).unwrap().translation();
+    (from_pos - to_pos).normalize_or_zero().truncate()
+}
 ```
 
 The bug is that we normalize *before* truncating, so the z-coordinate still 'counts' for purposes of length. So if the source is at `(0, 0, 0)` and the target is at `(0, 1, 100)`, then we'll return `(0, 0.001)`!
@@ -32,6 +33,8 @@ Entities on the same layer are drawn in an effectively arbitrary order that can 
 use bevy::prelude::*;
 use extol_sprite_layer::{LayerIndex, SpriteLayerPlugin};
 
+// Define a type to represent your layers. All the traits here other than Copy
+// are mandatory.
 #[derive(Debug, Copy, Clone, Component, PartialEq, Eq, Hash)]
 enum SpriteLayer {
     Background,
@@ -42,6 +45,7 @@ enum SpriteLayer {
 }
 
 impl LayerIndex for SpriteLayer {
+    // Convert your type to an actual z-coordinate.
     fn as_z_coordinate(&self) -> f32 {
         use SpriteLayer::*;
         match *self {
