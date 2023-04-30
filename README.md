@@ -24,7 +24,7 @@ If you have entities that are children of other entities, the parent's transform
 
 Entities on the same layer are drawn in an effectively arbitrary order that can change between frames. If your game can have entities on the same layer overlap with each other, this means entities will 'flip-flop' back and forth. This is distracting. The usual solution is *y-sorting*, where entities on the same layer are sorted by their y-coordinate, so enemies lower on the screen are drawn on top. Here's an example from my WIP game [tengoku](https://codeberg.org/ext0l/tengoku), which is what led me to develop this crate. In both images, all the enemies (the blue 'soldiers') are on the same layer. In the first one, enemies are drawn roughly in spawn order, which makes the pile appear disorganized and unnatural. The second is y-sorted, resulting in a much cleaner-looking pile. (The red robot in the center, representing the player, is on a higher layer in both cases.)
 
-![z-sorted enemies piled up in a disorderly way](./docs/before.png)
+![non-y-sorted enemies piled up in a disorderly way](./docs/before.png)
 ![y-sorted enemies in a much cleaner pile](./docs/after.png)
 
 ## How to use
