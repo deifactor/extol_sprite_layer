@@ -10,3 +10,7 @@ readme = "README.md"
 repository = "https://github.com/deifactor/extol_sprite_layer"
 
 [dependencies]
+bevy = { version = "0.10.1", default-features = false, features = ["bevy_render", "bevy_sprite"] }
+
+[dev-dependencies]
+bevy = { version = "0.10.1", default-features = false, features = ["bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }
