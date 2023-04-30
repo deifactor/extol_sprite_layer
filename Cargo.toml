@@ -15,4 +15,9 @@ ordered-float = "3.7.0"
 
 [dev-dependencies]
 bevy = { version = "0.10.1", default-features = false, features = ["bevy_asset", "bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }
+criterion = "0.4.0"
 fastrand = "1.9.0"
+
+[[bench]]
+name = "benchmark"
+harness = false
