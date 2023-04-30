@@ -62,7 +62,7 @@ pub trait LayerIndex: Eq + Hash + Component + Clone + Debug {
 /// `LayerIndex` component so that they're rendered in the proper layer with
 /// y-sorting.
 #[allow(clippy::type_complexity)]
-pub fn update_sprite_z_coordinates<Layer: LayerIndex>(
+fn update_sprite_z_coordinates<Layer: LayerIndex>(
     mut extracted_sprites: ResMut<ExtractedSprites>,
     z_index_query: Extract<Query<(Entity, &Layer, &GlobalTransform)>>,
 ) {
