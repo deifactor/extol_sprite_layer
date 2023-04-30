@@ -6,7 +6,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 
 use bevy::render::RenderApp;
-use bevy::sprite::{extract_sprites, queue_sprites, SpriteSystem};
+use bevy::sprite::{extract_sprites, queue_sprites, ExtractedSprite, SpriteSystem};
 use bevy::{prelude::*, render::Extract, sprite::ExtractedSprites};
 use ordered_float::OrderedFloat;
 
@@ -16,6 +16,16 @@ use ordered_float::OrderedFloat;
 ///
 /// In general you should only instantiate this plugin with a single type you
 /// use throughout your program.
+///
+/// By default your sprites will also be y-sorted. If you don't need this,
+/// replace the [`SpriteLayerOptions`] like so:
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use extol_sprite_layer::SpriteLayerOptions;
+/// # let mut app = App::new();
+/// app.insert_resource(SpriteLayerOptions { y_sort: false });
+/// ```
 pub struct SpriteLayerPlugin<Layer> {
     phantom: PhantomData<Layer>,
 }
@@ -30,6 +40,7 @@ impl<Layer> Default for SpriteLayerPlugin<Layer> {
 
 impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
     fn build(&self, app: &mut App) {
+        app.init_resource::<SpriteLayerOptions>();
         if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.add_system(
                 update_sprite_z_coordinates::<Layer>
@@ -41,6 +52,18 @@ impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
         } else {
             error!("Building the SpriteLayerPlugin without a RenderApp does nothing; this is probably not what you want!");
         }
+    }
+}
+
+/// Configure how the sprite layer
+#[derive(Debug, Resource, Reflect)]
+pub struct SpriteLayerOptions {
+    pub y_sort: bool,
+}
+
+impl Default for SpriteLayerOptions {
+    fn default() -> Self {
+        Self { y_sort: true }
     }
 }
 
@@ -64,23 +87,37 @@ pub trait LayerIndex: Eq + Hash + Component + Clone + Debug {
 #[allow(clippy::type_complexity)]
 fn update_sprite_z_coordinates<Layer: LayerIndex>(
     mut extracted_sprites: ResMut<ExtractedSprites>,
+    options: Extract<Res<SpriteLayerOptions>>,
     z_index_query: Extract<Query<(Entity, &Layer, &GlobalTransform)>>,
 ) {
-    let z_index_map = map_z_indices(z_index_query);
-    for sprite in extracted_sprites.sprites.iter_mut() {
-        if let Some(z) = z_index_map.get(&sprite.entity) {
-            if sprite.transform.translation().z != 0.0 {
-                warn!(
-                    "Entity {:?} has a LabelLayer *and* a nonzero z-coordinate {}; this is probably not what you want!",
-                    sprite.entity,
-                    sprite.transform.translation().z
-                );
+    if options.y_sort {
+        let z_index_map = map_z_indices(z_index_query);
+        for sprite in extracted_sprites.sprites.iter_mut() {
+            if let Some(z) = z_index_map.get(&sprite.entity) {
+                set_sprite_coordinate(sprite, *z);
             }
-            let mut affine = sprite.transform.affine();
-            affine.translation.z = *z;
-            sprite.transform = GlobalTransform::from(affine);
+        }
+    } else {
+        for sprite in extracted_sprites.sprites.iter_mut() {
+            if let Ok((_, layer, _)) = z_index_query.get(sprite.entity) {
+                set_sprite_coordinate(sprite, layer.as_z_coordinate());
+            }
         }
     }
+}
+
+/// Sets the z-coordinate of the sprite's transform.
+fn set_sprite_coordinate(sprite: &mut ExtractedSprite, z: f32) {
+    if sprite.transform.translation().z != 0.0 {
+        warn!(
+            "Entity {:?} has a LabelLayer *and* a nonzero z-coordinate {}; this is probably not what you want!",
+            sprite.entity,
+            sprite.transform.translation().z
+        );
+    }
+    let mut affine = sprite.transform.affine();
+    affine.translation.z = z;
+    sprite.transform = GlobalTransform::from(affine);
 }
 
 /// Used to sort the entities within a sprite layer.
