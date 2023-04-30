@@ -2,6 +2,7 @@
 name = "extol_sprite_layer"
 version = "0.1.0"
 edition = "2021"
+authors = ["Ash <ext0l@catgirl.ai>"]
 categories = [ "game-development" ]
 description = "Explicitly-defined sprite layers for Bevy, including automatic y-sorting."
 keywords = [ "gamedev", "bevy" ]

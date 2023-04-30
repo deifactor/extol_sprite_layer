@@ -71,7 +71,9 @@ impl Default for SpriteLayerOptions {
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, SystemSet)]
 struct SpriteLayerSet;
 
-/// Trait for the type you use to indicate your sprites' layers.
+/// Trait for the type you use to indicate your sprites' layers. Add this as a
+/// component to any entity you want to treat as a sprite. Note that this does
+/// *not* propagate.
 pub trait LayerIndex: Eq + Hash + Component + Clone + Debug {
     /// The actual numeric z-value that the layer index corresponds to.  Note
     /// that the z-value for an entity can be any value in the range
@@ -113,12 +115,14 @@ fn update_sprite_z_coordinates<Layer: LayerIndex>(
 /// Sets the z-coordinate of the sprite's transform.
 fn set_sprite_coordinate(sprite: &mut ExtractedSprite, z: f32) {
     if sprite.transform.translation().z != 0.0 {
+        // not currently disableable, but I'm open if you file an issue :)
         warn!(
             "Entity {:?} has a LabelLayer *and* a nonzero z-coordinate {}; this is probably not what you want!",
             sprite.entity,
             sprite.transform.translation().z
         );
     }
+    // hacky hacky; I can't find a way to directly mutate the GlobalTransform.
     let mut affine = sprite.transform.affine();
     affine.translation.z = z;
     sprite.transform = GlobalTransform::from(affine);
