@@ -1,5 +1,3 @@
-# `extol_sprite_layer`
-
 `extol_sprite_layer` lets you specify the drawing order for sprites in your [Bevy](https://bevyengine.org/) game using a separate component rather than via the z-coordinate of your transforms.
 
 ## Motivation
@@ -8,7 +6,9 @@ When making a 2D game in [bevy](https://bevyengine.org/), the z-coordinate is es
 
 The z-coordinate isn't relevant for things like distance or normalization. The following code is subtly wrong:
 
-```rs
+```rust
+use bevy::prelude::*;
+
 /// Get a unit vector pointing from the position of `source` to `target`, or zero if they're close.
 fn get_normal_direction(query: Query<&GlobalTransform>, source: Entity, target: Entity) -> Vec2 {
   let from_pos = query.get(source).unwrap().translation();
@@ -28,15 +28,35 @@ Entities on the same layer are drawn in an effectively arbitrary order that can 
 
 ## How to use
 
-At a high level:
+```rust
+use bevy::prelude::*;
+use extol_sprite_layer::{LayerIndex, SpriteLayerPlugin};
 
-- Define an enum `MyIndex` for your sprite layers that implements the `LayerIndex` trait.
-- Add the `SpriteLayerPlugin::<MyIndex>::default()` plugin to your app.
-- Insert a `Layer<MyIndex>` component on every sprite, and do *not* set their z-coordinates
+#[derive(Debug, Copy, Clone, Component, PartialEq, Eq, PartialOrd, Ord)]
+enum SpriteLayer {
+    Background,
+    Object,
+    Enemy,
+    Player,
+    Ui,
+}
 
-For more information, either see the examples or the crate documentation.
+impl LayerIndex for SpriteLayer {
+    fn as_z_coordinate(&self) -> f32 {
+        use SpriteLayer::*;
+        match *self {
+            // Note that the z-coordinates must be at least 1 apart...
+            Background => 0.,
+            Object => 1.,
+            Enemy => 2.,
+            // ... but can be more than that.
+            Player => 990.,
+            Ui => 995.
+        }
+    }
+}
 
-## How to contribute
-
-Install [the `just` command runner](https://github.com/casey/just) and run `just setup-repo` to set up hooks (or run the command yourself), then send PRs. I use [Nix](https://nixos.org/) to manage my build environment, but you don't have to. I try to adhere to [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
-
+let mut app = App::new();
+// Then, add the plugin to your app.
+app.add_plugin(SpriteLayerPlugin::<SpriteLayer>::default());
+```

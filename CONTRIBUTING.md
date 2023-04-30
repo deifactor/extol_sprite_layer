@@ -1,0 +1,1 @@
+Install [the `just` command runner](https://github.com/casey/just) and run `just setup-repo` to set up hooks (or run the command yourself), then send PRs. I use [Nix](https://nixos.org/) to manage my build environment, but you don't have to. I try to adhere to [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).

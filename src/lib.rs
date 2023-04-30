@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -6,17 +7,12 @@ use bevy::render::RenderApp;
 use bevy::sprite::{extract_sprites, queue_sprites, SpriteSystem};
 use bevy::{prelude::*, render::Extract, sprite::ExtractedSprites};
 
-/// Adjusts the z-coordinates of your extracted sprites so that they render in
-/// the proper order. To use this:
-/// - Define some `SpriteLayer` type that implements the [`LayerIndex`] trait.
-/// - Add it as a component to all of your sprite entities.
-/// - Add this plugin to your app.
+/// This plugin will modify the z-coordinates of the extracted sprites stored
+/// in Bevy's [`ExtractedSprites`] so that they're rendered in the proper
+/// order. See the crate documentation for how to use it.
 ///
-/// Caveats:
-/// - The sprite layer is not propagated from parent to child.
-/// - If you have a [`LayerLabel`] set on a component with a non-zero Z
-///   coordinate, this will print out a warning, since that z-coordinate will be
-///   effectively ignored.
+/// In general you should only instantiate this plugin with a single type you
+/// use throughout your program.
 pub struct SpriteLayerPlugin<Layer> {
     phantom: PhantomData<Layer>,
 }
@@ -39,15 +35,18 @@ impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
                     .before(queue_sprites)
                     .in_schedule(ExtractSchedule),
             );
-        };
+        } else {
+            error!("Building the SpriteLayerPlugin without a RenderApp does nothing; this is probably not what you want!");
+        }
     }
 }
 
-/// Trait for thigns that are used to indicate what z-layer a sprite should be
-/// on.
-///
-/// - The [`Ord`] instance is needed since we 'bucket' sprites by their layer in
-///   a BTreeMap.
+/// Set for all systems related to [`SpriteLayerPlugin`]. This is run in the
+/// render app's [`ExtractSchedule`], *not* the main app.
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, SystemSet)]
+struct SpriteLayerSet;
+
+/// Trait for the type you use to indicate your sprites' layers.
 pub trait LayerIndex: Ord + Component + Clone + Debug {
     /// The actual numeric z-value that the layer index corresponds to.  Note
     /// that the *actual* z-value may be up to `layer.as_z_coordinate() <= z <
@@ -57,7 +56,7 @@ pub trait LayerIndex: Ord + Component + Clone + Debug {
 }
 
 /// Update the z-coordinates of the transform of every sprite with a
-/// `LayerLabel` component so that they're rendered in the proper layer with
+/// `LayerIndex` component so that they're rendered in the proper layer with
 /// y-sorting.
 #[allow(clippy::type_complexity)]
 pub fn update_sprite_z_coordinates<Layer: LayerIndex>(
@@ -68,7 +67,11 @@ pub fn update_sprite_z_coordinates<Layer: LayerIndex>(
     for sprite in extracted_sprites.sprites.iter_mut() {
         if let Some(z) = z_index_map.get(&sprite.entity) {
             if sprite.transform.translation().z != 0.0 {
-                warn!("Entity {:?} has a LabelLayer *and* a nonzero z-coordinate {}; this is probably not what you want!", sprite.entity, sprite.transform.translation().z);
+                warn!(
+                    "Entity {:?} has a LabelLayer *and* a nonzero z-coordinate {}; this is probably not what you want!",
+                    sprite.entity,
+                    sprite.transform.translation().z
+                );
             }
             let mut affine = sprite.transform.affine();
             affine.translation.z = *z;
@@ -118,18 +121,4 @@ fn map_z_indices<Layer: LayerIndex>(
                 .map(move |(key, entity)| (entity, layer_z + key.offset()))
         })
         .collect()
-}
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
 }
