@@ -9,9 +9,14 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/deifactor/extol_sprite_layer"
 
+[features]
+default = ["parallel_y_sort"]
+parallel_y_sort = ["dep:rayon"]
+
 [dependencies]
 bevy = { version = "0.10.1", default-features = false, features = ["bevy_render", "bevy_sprite"] }
 ordered-float = "3.7.0"
+rayon = { version = "1.7.0", optional = true }
 
 [dev-dependencies]
 bevy = { version = "0.10.1", default-features = false, features = ["bevy_asset", "bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }

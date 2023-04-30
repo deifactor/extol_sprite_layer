@@ -9,6 +9,8 @@ use bevy::render::RenderApp;
 use bevy::sprite::{extract_sprites, queue_sprites, ExtractedSprite, SpriteSystem};
 use bevy::{prelude::*, render::Extract, sprite::ExtractedSprites};
 use ordered_float::OrderedFloat;
+#[cfg(feature = "parallel_y_sort")]
+use rayon::slice::ParallelSliceMut;
 
 /// This plugin will modify the z-coordinates of the extracted sprites stored
 /// in Bevy's [`ExtractedSprites`] so that they're rendered in the proper
@@ -72,12 +74,13 @@ struct SpriteLayerSet;
 /// Trait for the type you use to indicate your sprites' layers.
 pub trait LayerIndex: Eq + Hash + Component + Clone + Debug {
     /// The actual numeric z-value that the layer index corresponds to.  Note
-    /// that the *actual* z-value may be up to `layer.as_z_coordinate() <= z <
-    /// layer.as_z_coordinate() + 1.0`, since y-sorting is done by adding to
-    /// the z-axis. So your z-values should always be at least 1.0 apart.
+    /// that the z-value for an entity can be any value in the range
+    /// `layer.as_z_coordinate() <= z < layer.as_z_coordinate() + 1.0`, and the
+    /// exact values are an implementation detail!
     ///
     /// With the default Bevy camera settings, your return values from this
-    /// function should be between 0 and 999.0, since the camera is at z = 1000.0.
+    /// function should be between 0 and 999.0, since the camera is at z =
+    /// 1000.0. Prefer smaller z-values since that gives more precision.
     fn as_z_coordinate(&self) -> f32;
 }
 
@@ -88,10 +91,11 @@ pub trait LayerIndex: Eq + Hash + Component + Clone + Debug {
 fn update_sprite_z_coordinates<Layer: LayerIndex>(
     mut extracted_sprites: ResMut<ExtractedSprites>,
     options: Extract<Res<SpriteLayerOptions>>,
-    z_index_query: Extract<Query<(Entity, &Layer, &GlobalTransform)>>,
+    transform_query: Extract<Query<(Entity, &GlobalTransform), With<Layer>>>,
+    layer_query: Extract<Query<&Layer>>,
 ) {
     if options.y_sort {
-        let z_index_map = map_z_indices(z_index_query);
+        let z_index_map = map_z_indices(transform_query, layer_query);
         for sprite in extracted_sprites.sprites.iter_mut() {
             if let Some(z) = z_index_map.get(&sprite.entity) {
                 set_sprite_coordinate(sprite, *z);
@@ -99,7 +103,7 @@ fn update_sprite_z_coordinates<Layer: LayerIndex>(
         }
     } else {
         for sprite in extracted_sprites.sprites.iter_mut() {
-            if let Ok((_, layer, _)) = z_index_query.get(sprite.entity) {
+            if let Ok(layer) = layer_query.get(sprite.entity) {
                 set_sprite_coordinate(sprite, layer.as_z_coordinate());
             }
         }
@@ -137,29 +141,38 @@ impl ZIndexSortKey {
 /// entities with a higher y-coordinate have a higher offset.
 #[allow(clippy::type_complexity)]
 fn map_z_indices<Layer: LayerIndex>(
-    query: Extract<Query<(Entity, &Layer, &GlobalTransform)>>,
+    transform_query: Extract<Query<(Entity, &GlobalTransform), With<Layer>>>,
+    layer_query: Extract<Query<&Layer>>,
 ) -> HashMap<Entity, f32> {
-    // First, group the entities by their layer.
-    let mut by_layer: HashMap<&Layer, Vec<(ZIndexSortKey, Entity)>> = HashMap::new();
-    for (entity, layer, transform) in query.iter() {
-        by_layer
-            .entry(layer)
-            .or_default()
-            .push((ZIndexSortKey::new(transform), entity));
-    }
+    // We y-sort everything because this avoids the overhead of grouping
+    // entities by their layer. Using sort_by_cached_key to make the vec's
+    // elements smaller doesn't seem to help here.
+    let mut all_entities: Vec<(ZIndexSortKey, Entity)> = transform_query
+        .iter()
+        .map(|(entity, transform)| (ZIndexSortKey::new(transform), entity))
+        .collect();
 
-    by_layer
+    // most of the expense is here.
+    #[cfg(feature = "parallel_y_sort")]
+    all_entities.par_sort_unstable();
+    #[cfg(not(feature = "parallel_y_sort"))]
+    all_entities.sort_unstable();
+
+    let scale_factor = 1.0 / all_entities.len() as f32;
+    all_entities
         .into_iter()
-        .flat_map(|(layer, mut entities)| {
-            entities.sort_unstable();
-            let layer_z = layer.as_z_coordinate();
-            // add 1 to ensure there's no divide-by-zero if we somehow get an empty list
-            let scale_factor = 1.0 / (entities.len() + 1) as f32;
-            entities
-                .into_iter()
-                .enumerate()
-                // the first entity is at layer_z, the next is a bit higher, etc.
-                .map(move |(index, (_, entity))| (entity, layer_z + index as f32 * scale_factor))
+        .enumerate()
+        .map(|(i, (_, entity))| {
+            (
+                entity,
+                // NOTE: it's possible that the scale factor will be small
+                // enough relative to the z coordinate that these are equal for
+                // consecutive values. This occurs when z-coordinate *
+                // len(all_entities) > 2^23 (floats have 24 bits of
+                // precision). Even with a z-coordinate of 1000, this requires
+                // over 8000 entities to hit, which I think is fine.
+                layer_query.get(entity).unwrap().as_z_coordinate() + i as f32 * scale_factor,
+            )
         })
         .collect()
 }

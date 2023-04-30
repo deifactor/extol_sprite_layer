@@ -66,3 +66,9 @@ app
   .add_plugins(DefaultPlugins)
   .add_plugin(SpriteLayerPlugin::<SpriteLayer>::default());
 ```
+
+## Performance
+
+If y-sorting is enabled (the default), this plugin is `O(N log N)`, where `N` is the number of entities with sprite layers. In benchmarks on my personal machine (a System76 Lemur Pro 10), with 10000 sprites, the plugin added about 600us of overhead with y-sorting; Disabling the `rayon` feature (or running on a single-threaded runtime) roughly doubles this.
+
+If y-sorting is *not* enabled then the overhead is `O(N)` and not significant enough to worry about.
