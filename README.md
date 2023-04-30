@@ -31,7 +31,7 @@ Entities on the same layer are drawn in an effectively arbitrary order that can 
 
 ```rust
 use bevy::prelude::*;
-use extol_sprite_layer::{LayerIndex, SpriteLayerPlugin};
+use extol_sprite_layer::{LayerIndex, SpriteLayerPlugin, SpriteLayerOptions};
 
 // Define a type to represent your layers. All the traits here other than Copy
 // are mandatory.
@@ -65,6 +65,9 @@ let mut app = App::new();
 app
   .add_plugins(DefaultPlugins)
   .add_plugin(SpriteLayerPlugin::<SpriteLayer>::default());
+
+// To disable y-sorting, do
+app.insert_resource(SpriteLayerOptions { y_sort: false });
 ```
 
 ## Performance
