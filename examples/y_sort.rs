@@ -5,7 +5,7 @@ use bevy::{
 };
 use extol_sprite_layer::*;
 
-#[derive(Debug, Clone, Component, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Component, Hash, PartialEq, Eq)]
 enum SpriteLayer {
     Middle,
 }

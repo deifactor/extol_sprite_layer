@@ -1,11 +1,14 @@
 #![doc = include_str!("../README.md")]
-use std::collections::{BTreeMap, HashMap};
+use std::cmp::Reverse;
+use std::collections::HashMap;
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 use bevy::render::RenderApp;
 use bevy::sprite::{extract_sprites, queue_sprites, SpriteSystem};
 use bevy::{prelude::*, render::Extract, sprite::ExtractedSprites};
+use ordered_float::OrderedFloat;
 
 /// This plugin will modify the z-coordinates of the extracted sprites stored
 /// in Bevy's [`ExtractedSprites`] so that they're rendered in the proper
@@ -47,7 +50,7 @@ impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
 struct SpriteLayerSet;
 
 /// Trait for the type you use to indicate your sprites' layers.
-pub trait LayerIndex: Ord + Component + Clone + Debug {
+pub trait LayerIndex: Eq + Hash + Component + Clone + Debug {
     /// The actual numeric z-value that the layer index corresponds to.  Note
     /// that the *actual* z-value may be up to `layer.as_z_coordinate() <= z <
     /// layer.as_z_coordinate() + 1.0`, since y-sorting is done by adding to
@@ -81,44 +84,45 @@ pub fn update_sprite_z_coordinates<Layer: LayerIndex>(
 }
 
 /// Used to sort the entities within a sprite layer.
-#[derive(Debug, PartialEq, PartialOrd)]
-struct ZIndexSortKey(f32);
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ZIndexSortKey(Reverse<OrderedFloat<f32>>);
 
 impl ZIndexSortKey {
-    /// How much to increase the z-axis by. Should always be in `0 <= offset <
-    /// 1`.
-    fn offset(self) -> f32 {
-        self.0 / 4096.0
+    // This is reversed because bevy uses +y pointing upwards, which is the
+    // opposite of what you generally want.
+    fn new(transform: &GlobalTransform) -> Self {
+        Self(Reverse(OrderedFloat(transform.translation().y)))
     }
 }
 
 /// Determines the z-value to use for each entity. The z-value is set to
-/// `f32::from(layer) + offset`, where `offset` is calculated so that entities
-/// with a higher y-coordinate have a higher offset. Entities that are not
-/// visible are omitted in the result.
-///
-/// The returned value is guaranteed to be sorted in increasing z-coordinate
-/// value.
+/// `layer.as_z_coordinate() + offset`, where `offset` is calculated so that
+/// entities with a higher y-coordinate have a higher offset.
 #[allow(clippy::type_complexity)]
 fn map_z_indices<Layer: LayerIndex>(
     query: Extract<Query<(Entity, &Layer, &GlobalTransform)>>,
 ) -> HashMap<Entity, f32> {
-    let mut by_layer: BTreeMap<&Layer, Vec<(ZIndexSortKey, Entity)>> = BTreeMap::new();
+    // First, group the entities by their layer.
+    let mut by_layer: HashMap<&Layer, Vec<(ZIndexSortKey, Entity)>> = HashMap::new();
     for (entity, layer, transform) in query.iter() {
         by_layer
             .entry(layer)
             .or_default()
-            .push((ZIndexSortKey(-transform.translation().y), entity));
+            .push((ZIndexSortKey::new(transform), entity));
     }
 
     by_layer
         .into_iter()
         .flat_map(|(layer, mut entities)| {
+            entities.sort_unstable();
             let layer_z = layer.as_z_coordinate();
-            entities.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+            // add 1 to ensure there's no divide-by-zero if we somehow get an empty list
+            let scale_factor = 1.0 / (entities.len() + 1) as f32;
             entities
                 .into_iter()
-                .map(move |(key, entity)| (entity, layer_z + key.offset()))
+                .enumerate()
+                // the first entity is at layer_z, the next is a bit higher, etc.
+                .map(move |(index, (_, entity))| (entity, layer_z + index as f32 * scale_factor))
         })
         .collect()
 }

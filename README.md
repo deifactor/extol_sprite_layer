@@ -32,7 +32,7 @@ Entities on the same layer are drawn in an effectively arbitrary order that can 
 use bevy::prelude::*;
 use extol_sprite_layer::{LayerIndex, SpriteLayerPlugin};
 
-#[derive(Debug, Copy, Clone, Component, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Component, PartialEq, Eq, Hash)]
 enum SpriteLayer {
     Background,
     Object,
