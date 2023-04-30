@@ -62,5 +62,7 @@ impl LayerIndex for SpriteLayer {
 
 let mut app = App::new();
 // Then, add the plugin to your app.
-app.add_plugin(SpriteLayerPlugin::<SpriteLayer>::default());
+app
+  .add_plugins(DefaultPlugins)
+  .add_plugin(SpriteLayerPlugin::<SpriteLayer>::default());
 ```

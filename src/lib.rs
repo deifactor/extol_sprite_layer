@@ -41,17 +41,14 @@ impl<Layer> Default for SpriteLayerPlugin<Layer> {
 impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpriteLayerOptions>();
-        if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
-            render_app.add_system(
-                update_sprite_z_coordinates::<Layer>
-                    .in_set(SpriteSystem::ExtractSprites)
-                    .after(extract_sprites)
-                    .before(queue_sprites)
-                    .in_schedule(ExtractSchedule),
-            );
-        } else {
-            error!("Building the SpriteLayerPlugin without a RenderApp does nothing; this is probably not what you want!");
-        }
+        let render_app = app.sub_app_mut(RenderApp);
+        render_app.add_system(
+            update_sprite_z_coordinates::<Layer>
+                .in_set(SpriteSystem::ExtractSprites)
+                .after(extract_sprites)
+                .before(queue_sprites)
+                .in_schedule(ExtractSchedule),
+        );
     }
 }
 
