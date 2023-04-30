@@ -29,7 +29,7 @@ impl<Layer> Default for SpriteLayerPlugin<Layer> {
     }
 }
 
-impl<Layer: LayerLabel> Plugin for SpriteLayerPlugin<Layer> {
+impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
     fn build(&self, app: &mut App) {
         if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.add_system(
@@ -46,21 +46,21 @@ impl<Layer: LayerLabel> Plugin for SpriteLayerPlugin<Layer> {
 /// Trait for thigns that are used to indicate what z-layer a sprite should be
 /// on.
 ///
-/// - The [`Into<f32>`] instance is necessary to determine the actual numeric
-///   z-values so that you can ensure ordering with entities that are not part
-///   of this system. Note that the *actual* z-value is in the range
-///   `layer.into() <= z < layer.into() + 1.0`, since y-sorting is done by
-///   adding to the z-axis. So your z-values should always be at least 1.0
-///   apart.
 /// - The [`Ord`] instance is needed since we 'bucket' sprites by their layer in
 ///   a BTreeMap.
-pub trait LayerLabel: Ord + Into<f32> + Component + Clone + Debug {}
+pub trait LayerIndex: Ord + Component + Clone + Debug {
+    /// The actual numeric z-value that the layer index corresponds to.  Note
+    /// that the *actual* z-value may be up to `layer.as_z_coordinate() <= z <
+    /// layer.as_z_coordinate() + 1.0`, since y-sorting is done by adding to
+    /// the z-axis. So your z-values should always be at least 1.0 apart.
+    fn as_z_coordinate(&self) -> f32;
+}
 
 /// Update the z-coordinates of the transform of every sprite with a
 /// `LayerLabel` component so that they're rendered in the proper layer with
 /// y-sorting.
 #[allow(clippy::type_complexity)]
-pub fn update_sprite_z_coordinates<Layer: LayerLabel>(
+pub fn update_sprite_z_coordinates<Layer: LayerIndex>(
     mut extracted_sprites: ResMut<ExtractedSprites>,
     z_index_query: Extract<Query<(Entity, &Layer, &GlobalTransform)>>,
 ) {
@@ -97,7 +97,7 @@ impl ZIndexSortKey {
 /// The returned value is guaranteed to be sorted in increasing z-coordinate
 /// value.
 #[allow(clippy::type_complexity)]
-fn map_z_indices<Layer: LayerLabel>(
+fn map_z_indices<Layer: LayerIndex>(
     query: Extract<Query<(Entity, &Layer, &GlobalTransform)>>,
 ) -> HashMap<Entity, f32> {
     let mut by_layer: BTreeMap<&Layer, Vec<(ZIndexSortKey, Entity)>> = BTreeMap::new();
@@ -111,7 +111,7 @@ fn map_z_indices<Layer: LayerLabel>(
     by_layer
         .into_iter()
         .flat_map(|(layer, mut entities)| {
-            let layer_z = Into::<f32>::into(layer.clone());
+            let layer_z = layer.as_z_coordinate();
             entities.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
             entities
                 .into_iter()

@@ -13,4 +13,5 @@ repository = "https://github.com/deifactor/extol_sprite_layer"
 bevy = { version = "0.10.1", default-features = false, features = ["bevy_render", "bevy_sprite"] }
 
 [dev-dependencies]
-bevy = { version = "0.10.1", default-features = false, features = ["bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }
+bevy = { version = "0.10.1", default-features = false, features = ["bevy_asset", "bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }
+fastrand = "1.9.0"

@@ -22,6 +22,16 @@
             toolchain
             cargo-nextest
             just
+
+            pkg-config
+            libxkbcommon
+            vulkan-loader
+            xorg.libX11
+            xorg.libXcursor
+            xorg.libXrandr
+            xorg.libXi
+            udev
+            openssl
           ];
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath nativeBuildInputs;
         };
