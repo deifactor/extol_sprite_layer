@@ -47,6 +47,7 @@ impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
         render_app.add_system(
             update_sprite_z_coordinates::<Layer>
                 .in_set(SpriteSystem::ExtractSprites)
+                .in_set(SpriteLayerSet)
                 .after(extract_sprites)
                 .before(queue_sprites)
                 .in_schedule(ExtractSchedule),
@@ -69,7 +70,7 @@ impl Default for SpriteLayerOptions {
 /// Set for all systems related to [`SpriteLayerPlugin`]. This is run in the
 /// render app's [`ExtractSchedule`], *not* the main app.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, SystemSet)]
-struct SpriteLayerSet;
+pub struct SpriteLayerSet;
 
 /// Trait for the type you use to indicate your sprites' layers. Add this as a
 /// component to any entity you want to treat as a sprite. Note that this does
