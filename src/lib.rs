@@ -44,13 +44,13 @@ impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpriteLayerOptions>();
         let render_app = app.sub_app_mut(RenderApp);
-        render_app.add_system(
+        render_app.add_systems(
+            ExtractSchedule,
             update_sprite_z_coordinates::<Layer>
                 .in_set(SpriteSystem::ExtractSprites)
                 .in_set(SpriteLayerSet)
                 .after(extract_sprites)
-                .before(queue_sprites)
-                .in_schedule(ExtractSchedule),
+                .before(queue_sprites),
         );
     }
 }

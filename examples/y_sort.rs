@@ -22,9 +22,12 @@ impl LayerIndex for SpriteLayer {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(SpriteLayerPlugin::<SpriteLayer>::default())
-        .add_startup_system(spawn_sprites)
-        .add_system(toggle_y_sort.run_if(input_just_pressed(KeyCode::Space)))
+        .add_plugins(SpriteLayerPlugin::<SpriteLayer>::default())
+        .add_systems(Startup, spawn_sprites)
+        .add_systems(
+            Update,
+            toggle_y_sort.run_if(input_just_pressed(KeyCode::Space)),
+        )
         .insert_resource(ClearColor(Color::BLACK))
         .run();
 }

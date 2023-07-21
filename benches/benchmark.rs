@@ -25,7 +25,7 @@ fn setup_app() -> App {
             .disable::<WinitPlugin>()
             .disable::<LogPlugin>(),
     )
-    .add_plugin(SpriteLayerPlugin::<SpriteLayer>::default());
+    .add_plugins(SpriteLayerPlugin::<SpriteLayer>::default());
     for _ in 0..10000 {
         let sprite = Sprite {
             custom_size: Some(Vec2::new(60.0, 60.0)),
@@ -40,13 +40,14 @@ fn setup_app() -> App {
             SpriteLayer::Middle,
         ));
     }
-    app.setup();
+    while !app.ready() {
+        bevy::tasks::tick_global_task_pools_on_main_thread();
+    }
+    app.finish();
+    app.cleanup();
     app
 }
 
-// Unfortunately, bevy doesn't like running multiple apps with render plugins,
-// even if you drop one first, so if you want to iterate on benchmarking you
-// have to manually tweak this.
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut app = setup_app();
     c.bench_function("create app", |b| {
