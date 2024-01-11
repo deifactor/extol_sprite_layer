@@ -64,7 +64,7 @@ let mut app = App::new();
 // Then, add the plugin to your app.
 app
   .add_plugins(DefaultPlugins)
-  .add_plugin(SpriteLayerPlugin::<SpriteLayer>::default());
+  .add_plugins(SpriteLayerPlugin::<SpriteLayer>::default());
 
 // Now just use SpriteLayer as a component and don't set the z-component on any
 // of your transforms.

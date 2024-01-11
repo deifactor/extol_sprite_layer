@@ -99,14 +99,14 @@ fn update_sprite_z_coordinates<Layer: LayerIndex>(
 ) {
     if options.y_sort {
         let z_index_map = map_z_indices(transform_query, layer_query);
-        for sprite in extracted_sprites.sprites.iter_mut() {
-            if let Some(z) = z_index_map.get(&sprite.entity) {
+        for (entity, sprite) in extracted_sprites.sprites.iter_mut() {
+            if let Some(z) = z_index_map.get(entity) {
                 set_sprite_coordinate(sprite, *z);
             }
         }
     } else {
-        for sprite in extracted_sprites.sprites.iter_mut() {
-            if let Ok(layer) = layer_query.get(sprite.entity) {
+        for (entity, sprite) in extracted_sprites.sprites.iter_mut() {
+            if let Ok(layer) = layer_query.get(*entity) {
                 set_sprite_coordinate(sprite, layer.as_z_coordinate());
             }
         }
@@ -119,7 +119,7 @@ fn set_sprite_coordinate(sprite: &mut ExtractedSprite, z: f32) {
         // not currently disableable, but I'm open if you file an issue :)
         warn!(
             "Entity {:?} has a LabelLayer *and* a nonzero z-coordinate {}; this is probably not what you want!",
-            sprite.entity,
+            sprite.original_entity,
             sprite.transform.translation().z
         );
     }
