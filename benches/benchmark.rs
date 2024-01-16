@@ -1,4 +1,4 @@
-use bevy::{log::LogPlugin, prelude::*, winit::WinitPlugin};
+use bevy::{app::PluginsState, log::LogPlugin, prelude::*, winit::WinitPlugin};
 use criterion::{criterion_group, criterion_main, Criterion};
 use extol_sprite_layer::{LayerIndex, SpriteLayerPlugin};
 
@@ -40,7 +40,7 @@ fn setup_app() -> App {
             SpriteLayer::Middle,
         ));
     }
-    while !app.ready() {
+    while app.plugins_state() != PluginsState::Ready {
         bevy::tasks::tick_global_task_pools_on_main_thread();
     }
     app.finish();
