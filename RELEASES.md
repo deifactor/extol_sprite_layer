@@ -1,5 +1,9 @@
 # Release notes
 
+## Version 0.3.0
+
+- Compatibility with bevy 0.12. No functional changes.
+
 ## Version 0.2.0
 
 - Compatibility with bevy 0.11. No functional changes.
