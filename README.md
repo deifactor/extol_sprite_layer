@@ -81,9 +81,7 @@ If y-sorting is *not* enabled then the overhead is `O(N)` and not significant en
 
 ## Known issues
 
-- Currently this only supports sprites (i.e., not meshes).
 - For performance reasons, y-sorting sorts *all* entities at once. This means that if the product of a layer's z-coordinate with the number of sprites is larger than 2^23 or so, you can run into floating point precision issues.
-- Sprite layers do not propagate.
 
 ## Help
 
