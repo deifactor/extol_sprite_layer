@@ -1,10 +1,10 @@
 #![doc = include_str!("../README.md")]
 use std::cmp::Reverse;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
+use bevy::ecs::entity::EntityHashMap; // noticeably faster than std's
 use bevy::prelude::*;
 use ordered_float::OrderedFloat;
 #[cfg(feature = "parallel_y_sort")]
@@ -113,8 +113,8 @@ pub fn clear_z_coordinates(mut query: Query<&mut Transform, With<RenderZCoordina
 pub fn inherited_layers<Layer: LayerIndex>(
     recursive_query: Query<(Option<&Children>, Option<&Layer>)>,
     root_query: Query<(Entity, &Layer), Without<Parent>>,
-) -> HashMap<Entity, Layer> {
-    let mut layer_map = HashMap::new();
+) -> EntityHashMap<Layer> {
+    let mut layer_map = EntityHashMap::default();
     for (entity, layer) in &root_query {
         propagate_layers_impl(entity, layer, &recursive_query, &mut layer_map);
     }
@@ -126,7 +126,7 @@ fn propagate_layers_impl<Layer: LayerIndex>(
     entity: Entity,
     propagated_layer: &Layer,
     query: &Query<(Option<&Children>, Option<&Layer>)>,
-    layer_map: &mut HashMap<Entity, Layer>,
+    layer_map: &mut EntityHashMap<Layer>,
 ) {
     let (children, layer) = query.get(entity).expect("query shouldn't ever fail");
     let layer = layer.unwrap_or(propagated_layer);
@@ -145,7 +145,7 @@ fn propagate_layers_impl<Layer: LayerIndex>(
 /// z-coordinate, plus an offset in the range [0, 1) corresponding to its y-sorted position
 /// (if y-sorting is enabled).
 pub fn compute_render_z_coordinates<Layer: LayerIndex>(
-    In(layers): In<HashMap<Entity, Layer>>,
+    In(layers): In<EntityHashMap<Layer>>,
     mut commands: Commands,
     query: Query<&GlobalTransform>,
     options: Res<SpriteLayerOptions>,
