@@ -113,11 +113,14 @@ pub fn clear_z_coordinates(mut query: Query<&mut Transform, With<RenderZCoordina
 pub fn inherited_layers<Layer: LayerIndex>(
     recursive_query: Query<(Option<&Children>, Option<&Layer>)>,
     root_query: Query<(Entity, &Layer), Without<Parent>>,
+    mut size: Local<usize>,
 ) -> EntityHashMap<Layer> {
     let mut layer_map = EntityHashMap::default();
+    layer_map.reserve(*size);
     for (entity, layer) in &root_query {
         propagate_layers_impl(entity, layer, &recursive_query, &mut layer_map);
     }
+    *size = size.max(layer_map.len());
     layer_map
 }
 
