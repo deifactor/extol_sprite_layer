@@ -16,9 +16,8 @@ use rayon::slice::ParallelSliceMut;
 /// same sprite layer (though you can override this by giving them a sprite layer of their own). See
 /// the crate documentation for how to use it.
 ///
-/// The z-coordinate each entity will have is stored on [`RenderZCoordinate`] (including for
-/// entities that don't have layers but are children of entities with layers); you shouldn't modify
-/// this yourself, but you can read it if you need that information for something.
+/// If you need to know the z-coordinate, you can read it out of the [`GlobalTransform`] after the
+/// [`SpriteLayer::SetZCoordinates`] set has run.
 ///
 /// In general you should only instantiate this plugin with a single type you use throughout your
 /// program.
@@ -55,10 +54,7 @@ impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
                 Last,
                 // We need to run these systems *after* the transform's systems because they need the
                 // proper y-coordinate to be set for y-sorting.
-                (
-                    inherited_layers::<Layer>.pipe(compute_render_z_coordinates::<Layer>),
-                    update_global_transforms,
-                )
+                (inherited_layers::<Layer>.pipe(set_z_coordinates::<Layer>),)
                     .chain()
                     .in_set(SpriteLayerSet::SetZCoordinates),
             )
@@ -147,10 +143,9 @@ fn propagate_layers_impl<Layer: LayerIndex>(
 /// Compute the z-coordinate that each entity should have. This is equal to its layer's equivalent
 /// z-coordinate, plus an offset in the range [0, 1) corresponding to its y-sorted position
 /// (if y-sorting is enabled).
-pub fn compute_render_z_coordinates<Layer: LayerIndex>(
+pub fn set_z_coordinates<Layer: LayerIndex>(
     In(layers): In<EntityHashMap<Layer>>,
-    mut commands: Commands,
-    query: Query<&GlobalTransform>,
+    mut transform_query: Query<&mut GlobalTransform>,
     options: Res<SpriteLayerOptions>,
 ) {
     if options.y_sort {
@@ -161,7 +156,7 @@ pub fn compute_render_z_coordinates<Layer: LayerIndex>(
             .keys()
             .map(|entity| {
                 (
-                    query
+                    transform_query
                         .get(*entity)
                         .map(ZIndexSortKey::new)
                         .unwrap_or_else(|_| ZIndexSortKey::new(&Default::default())),
@@ -179,25 +174,23 @@ pub fn compute_render_z_coordinates<Layer: LayerIndex>(
         let scale_factor = 1.0 / sort_keys.len() as f32;
         for (i, (_, entity)) in sort_keys.into_iter().enumerate() {
             let z = layers[&entity].as_z_coordinate() + (i as f32) * scale_factor;
-            commands.entity(entity).try_insert(RenderZCoordinate(z));
+            set_transform_z(transform_query.get_mut(entity).unwrap().as_mut(), z);
         }
     } else {
-        for (entity, layer) in &layers {
-            commands
-                .entity(*entity)
-                .try_insert(RenderZCoordinate(layer.as_z_coordinate()));
+        for (entity, layer) in layers {
+            set_transform_z(
+                transform_query.get_mut(entity).unwrap().as_mut(),
+                layer.as_z_coordinate(),
+            );
         }
     }
 }
 
-/// Sets the z-coordinate of each entity's [`GlobalTransform`] from its [`RenderZCoordinate`]
-pub fn update_global_transforms(mut query: Query<(&RenderZCoordinate, &mut GlobalTransform)>) {
-    for (render_coordinate, mut transform) in query.iter_mut() {
-        // hacky hacky; I can't find a way to directly mutate the GlobalTransform.
-        let mut affine = transform.affine();
-        affine.translation.z = render_coordinate.get();
-        *transform = GlobalTransform::from(affine);
-    }
+fn set_transform_z(transform: &mut GlobalTransform, z: f32) {
+    // hacky hacky; I can't find a way to directly mutate the GlobalTransform.
+    let mut affine = transform.affine();
+    affine.translation.z = z;
+    *transform = GlobalTransform::from(affine);
 }
 
 /// Used to sort the entities within a sprite layer.
@@ -215,18 +208,6 @@ impl ZIndexSortKey {
 /// Stores the z-coordinate that will be used at render time. Don't modify this yourself.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Component, Reflect)]
 pub struct RenderZCoordinate(pub f32);
-
-// we use new/get instead of destructuring to make using it externally a little more annoying
-// and for forwards compat
-impl RenderZCoordinate {
-    pub fn new(z: f32) -> Self {
-        Self(z)
-    }
-
-    fn get(self) -> f32 {
-        self.0
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -284,18 +265,11 @@ mod tests {
         app.update();
 
         let get_z = |entity| {
-            let render_coordinate = app.world.get::<RenderZCoordinate>(entity).unwrap().0;
-            let transform_z = app
-                .world
+            app.world
                 .get::<GlobalTransform>(entity)
                 .unwrap()
                 .translation()
-                .z;
-            assert_eq!(
-                render_coordinate, transform_z,
-                "inconsistent z-coordinate for {entity:?}"
-            );
-            transform_z
+                .z
         };
         assert!(get_z(bottom) < get_z(middle));
         assert!(get_z(middle) < get_z(top));
