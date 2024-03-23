@@ -166,12 +166,21 @@ pub fn set_z_coordinates<Layer: LayerIndex>(
         let scale_factor = 1.0 / y_sorted.len() as f32;
         for (i, entity) in y_sorted.into_iter().enumerate() {
             let z = layers[&entity].as_z_coordinate() + (i as f32) * scale_factor;
-            set_transform_z(transform_query.get_mut(entity).unwrap().as_mut(), z);
+            set_transform_z(
+                transform_query
+                    .get_mut(entity)
+                    .unwrap()
+                    .bypass_change_detection(),
+                z,
+            );
         }
     } else {
         for (entity, layer) in layers {
             set_transform_z(
-                transform_query.get_mut(entity).unwrap().as_mut(),
+                transform_query
+                    .get_mut(entity)
+                    .unwrap()
+                    .bypass_change_detection(),
                 layer.as_z_coordinate(),
             );
         }
