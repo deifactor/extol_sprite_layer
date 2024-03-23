@@ -150,29 +150,21 @@ pub fn set_z_coordinates<Layer: LayerIndex>(
 ) {
     if options.y_sort {
         // We y-sort everything because this avoids the overhead of grouping
-        // entities by their layer. Using sort_by_cached_key to make the vec's
-        // elements smaller doesn't seem to help here.
-        let mut sort_keys: Vec<(ZIndexSortKey, Entity)> = layers
-            .keys()
-            .map(|entity| {
-                (
-                    transform_query
-                        .get(*entity)
-                        .map(ZIndexSortKey::new)
-                        .unwrap_or_else(|_| ZIndexSortKey::new(&Default::default())),
-                    *entity,
-                )
-            })
-            .collect();
-
-        // most of the expense is here.
+        // entities by their layer.
+        let mut y_sorted: Vec<Entity> = layers.keys().cloned().collect();
+        let key_fn = |entity: &Entity| {
+            transform_query
+                .get(*entity)
+                .map(ZIndexSortKey::new)
+                .unwrap_or_else(|_| ZIndexSortKey::new(&Default::default()))
+        };
         #[cfg(feature = "parallel_y_sort")]
-        sort_keys.par_sort_unstable();
+        y_sorted.par_sort_by_cached_key(key_fn);
         #[cfg(not(feature = "parallel_y_sort"))]
-        sort_keys.sort_unstable();
+        y_sorted.sort_by_cached_key(key_fn);
 
-        let scale_factor = 1.0 / sort_keys.len() as f32;
-        for (i, (_, entity)) in sort_keys.into_iter().enumerate() {
+        let scale_factor = 1.0 / y_sorted.len() as f32;
+        for (i, entity) in y_sorted.into_iter().enumerate() {
             let z = layers[&entity].as_z_coordinate() + (i as f32) * scale_factor;
             set_transform_z(transform_query.get_mut(entity).unwrap().as_mut(), z);
         }
