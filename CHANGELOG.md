@@ -2,11 +2,28 @@
 
 ## Version 0.5.0
 
-- **Major functionality change**: the plugin now modifies entities' transforms instead of
-  intervening in the render step. This means that this should now work on any entity, not just
-  sprites. This in particular means that version 0.4.0 is broken and should not be used.
+**Major functionality changes**:
+
+- The plugin now modifies entities' transforms instead of intervening in the render step. This means
+  that this should now work on any entity, not just sprites.
+- In order to preserve the useful invariant that transforms are not affected, this plugin now runs
+  in the `Last` schedule to directly set the `GlobalTransform` and in the `First` schedule to zero
+  it out. If you have code that runs in either of these schedules, you can explicitly sequence
+  with respect to the `SpriteLayerSet` system set.
+- Layers now propagate to the children of each entity; if a child has an explicitly-set layer, that
+  overrides the inherited layer.
+
+**Minor changes**:
+
+- We now always use single-threaded sort, as multi-threaded sort is a pessimization(!) for all
+  the reasonable entity counts I tested. The `parallel_y_sort` feature has been removed.
+- Benchmarks are now finer-grained and have less overhead.
 
 ## ~~Version 0.4.0~~
+
+This version has been yanked, since it doesn't actually work due to changes in bevy around how
+entities in the render world are created. (Specifically, they have no association with their
+original entities).
 
 - ~~Compatibility with bevy 0.13. No functional changes.~~
 
