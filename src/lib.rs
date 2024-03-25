@@ -7,8 +7,7 @@ use std::marker::PhantomData;
 use bevy::ecs::entity::EntityHashMap; // noticeably faster than std's
 use bevy::prelude::*;
 use ordered_float::OrderedFloat;
-#[cfg(feature = "parallel_y_sort")]
-use rayon::slice::ParallelSliceMut;
+use tap::Tap;
 
 /// This plugin adjusts your entities' transforms so that their z-coordinates are sorted in the
 /// proper order, where the order is specified by the `Layer` component. Note that since this sets
@@ -151,17 +150,19 @@ pub fn set_z_coordinates<Layer: LayerIndex>(
     if options.y_sort {
         // We y-sort everything because this avoids the overhead of grouping
         // entities by their layer.
-        let mut y_sorted: Vec<Entity> = layers.keys().cloned().collect();
         let key_fn = |entity: &Entity| {
             transform_query
                 .get(*entity)
                 .map(ZIndexSortKey::new)
                 .unwrap_or_else(|_| ZIndexSortKey::new(&Default::default()))
         };
-        #[cfg(feature = "parallel_y_sort")]
-        y_sorted.par_sort_by_cached_key(key_fn);
-        #[cfg(not(feature = "parallel_y_sort"))]
-        y_sorted.sort_by_cached_key(key_fn);
+        // note: parallelizing with rayon is slower(!) here. I'm not sure why. maybe it has to do
+        // with some kind of inter-thread overhead or L1/L2 cache not being shared?
+        let y_sorted = layers
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>()
+            .tap_mut(|v| v.sort_by_cached_key(key_fn));
 
         let scale_factor = 1.0 / y_sorted.len() as f32;
         for (i, entity) in y_sorted.into_iter().enumerate() {
@@ -213,7 +214,6 @@ pub struct RenderZCoordinate(pub f32);
 #[cfg(test)]
 mod tests {
     use bevy::ecs::system::RunSystemOnce;
-    use tap::Tap;
 
     use super::*;
 
