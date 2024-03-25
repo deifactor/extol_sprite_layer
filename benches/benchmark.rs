@@ -1,5 +1,5 @@
-use bevy::{app::PluginsState, log::LogPlugin, prelude::*, winit::WinitPlugin};
-use criterion::{criterion_group, criterion_main, Criterion};
+use bevy::{app::PluginsState, prelude::*};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use extol_sprite_layer::{LayerIndex, SpriteLayerPlugin};
 
 #[derive(Debug, Clone, Component, Hash, PartialEq, Eq)]
@@ -17,16 +17,11 @@ impl LayerIndex for SpriteLayer {
     }
 }
 
-fn setup_app() -> App {
+fn setup_app(count: u64) -> App {
     let mut app = App::new();
-    app.add_plugins(
-        DefaultPlugins
-            .build()
-            .disable::<WinitPlugin>()
-            .disable::<LogPlugin>(),
-    )
-    .add_plugins(SpriteLayerPlugin::<SpriteLayer>::default());
-    for _ in 0..10000 {
+    app.add_plugins(MinimalPlugins)
+        .add_plugins(SpriteLayerPlugin::<SpriteLayer>::default());
+    for _ in 0..count {
         let sprite = Sprite {
             custom_size: Some(Vec2::new(60.0, 60.0)),
             ..default()
@@ -49,10 +44,18 @@ fn setup_app() -> App {
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let mut app = setup_app();
-    c.bench_function("create app", |b| {
-        b.iter(|| app.update());
-    });
+    let mut group = c.benchmark_group("update");
+    for count in [1000, 2000, 4000, 8000, 16000] {
+        group.throughput(criterion::Throughput::Elements(count));
+        group.bench_with_input(BenchmarkId::new("y-sorted", count), &count, |b, &count| {
+            let mut app = setup_app(count);
+            b.iter(|| app.update());
+        });
+        group.bench_with_input(BenchmarkId::new("unsorted", count), &count, |b, &count| {
+            let mut app = setup_app(count);
+            b.iter(|| app.update());
+        });
+    }
 }
 
 criterion_group!(benches, criterion_benchmark);
