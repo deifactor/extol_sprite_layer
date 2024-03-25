@@ -10,10 +10,10 @@ use ordered_float::OrderedFloat;
 use tap::Tap;
 
 /// This plugin adjusts your entities' transforms so that their z-coordinates are sorted in the
-/// proper order, where the order is specified by the `Layer` component. Note that since this sets
-/// the z-coordinate, the children of a component with a sprite layer will effectively be on the
-/// same sprite layer (though you can override this by giving them a sprite layer of their own). See
-/// the crate documentation for how to use it.
+/// proper order, where the order is specified by the `Layer` component. Layers propagate to
+/// children (including through entities with no )
+///
+/// Layers propagate to children, including 'through' entities with no [`GlobalTransform`].
 ///
 /// If you need to know the z-coordinate, you can read it out of the [`GlobalTransform`] after the
 /// [`SpriteLayer::SetZCoordinates`] set has run.
@@ -167,29 +167,22 @@ pub fn set_z_coordinates<Layer: LayerIndex>(
         let scale_factor = 1.0 / y_sorted.len() as f32;
         for (i, entity) in y_sorted.into_iter().enumerate() {
             let z = layers[&entity].as_z_coordinate() + (i as f32) * scale_factor;
-            set_transform_z(
-                transform_query
-                    .get_mut(entity)
-                    .unwrap()
-                    .bypass_change_detection(),
-                z,
-            );
+            set_transform_z(&mut transform_query, entity, z);
         }
     } else {
         for (entity, layer) in layers {
-            set_transform_z(
-                transform_query
-                    .get_mut(entity)
-                    .unwrap()
-                    .bypass_change_detection(),
-                layer.as_z_coordinate(),
-            );
+            set_transform_z(&mut transform_query, entity, layer.as_z_coordinate());
         }
     }
 }
 
-fn set_transform_z(transform: &mut GlobalTransform, z: f32) {
+/// Sets the given entity's global transform z. Does nothing if it doesn't have one.
+fn set_transform_z(query: &mut Query<&mut GlobalTransform>, entity: Entity, z: f32) {
     // hacky hacky; I can't find a way to directly mutate the GlobalTransform.
+    let Some(mut transform) = query.get_mut(entity).ok() else {
+        return;
+    };
+    let transform = transform.bypass_change_detection();
     let mut affine = transform.affine();
     affine.translation.z = z;
     *transform = GlobalTransform::from(affine);
@@ -329,5 +322,22 @@ mod tests {
         let sorted_by_y = positions
             .tap_mut(|positions| positions.sort_by_key(|vec| Reverse(OrderedFloat(vec.y))));
         assert_eq!(sorted_by_z, sorted_by_y);
+    }
+
+    #[test]
+    fn child_with_no_transform() {
+        let mut app = test_app();
+        let entity = app.world.spawn(layer_bundle(Layer::Top)).id();
+        let child = app.world.spawn_empty().set_parent(entity).id();
+        let grandchild = app
+            .world
+            .spawn(transform_at(0.0, 0.0))
+            .set_parent(child)
+            .id();
+        app.update();
+        assert_eq!(
+            get_z(&app.world, grandchild).floor(),
+            Layer::Top.as_z_coordinate()
+        );
     }
 }
