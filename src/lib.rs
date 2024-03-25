@@ -296,6 +296,7 @@ mod tests {
         let child_without_layer = app.world.spawn(transform_at(0.0, 0.0)).set_parent(top).id();
         app.update();
 
+        // we use .floor() here since y-sorting can add a fractional amount to the coordinates
         assert_eq!(
             get_z(&app.world, child_with_layer).floor(),
             Layer::Middle.as_z_coordinate()
