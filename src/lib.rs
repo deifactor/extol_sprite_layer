@@ -53,7 +53,7 @@ impl<Layer: LayerIndex> Plugin for SpriteLayerPlugin<Layer> {
                 Last,
                 // We need to run these systems *after* the transform's systems because they need the
                 // proper y-coordinate to be set for y-sorting.
-                (inherited_layers::<Layer>.pipe(set_z_coordinates::<Layer>),)
+                (propagate_layers::<Layer>.pipe(set_z_coordinates::<Layer>),)
                     .chain()
                     .in_set(SpriteLayerSet::SetZCoordinates),
             )
@@ -105,7 +105,7 @@ pub fn clear_z_coordinates(mut query: Query<&mut Transform, With<RenderZCoordina
 
 /// Propagates the `Layer` of each entity to the `InheritedLayer` of itself and all of its
 /// descendants.
-pub fn inherited_layers<Layer: LayerIndex>(
+pub fn propagate_layers<Layer: LayerIndex>(
     recursive_query: Query<(Option<&Children>, Option<&Layer>)>,
     root_query: Query<(Entity, &Layer), Without<Parent>>,
     mut size: Local<usize>,
