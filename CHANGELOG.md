@@ -1,5 +1,9 @@
 # Release notes
 
+## WIP
+
+- Update to `bevy` v0.14.
+
 ## Version 0.5.0
 
 **Major functionality changes**:
