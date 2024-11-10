@@ -12,14 +12,14 @@ repository = "https://github.com/deifactor/extol_sprite_layer"
 exclude = [ "docs/*" ]
 
 [dependencies]
-bevy = { version = "0.14", default-features = false }
-ordered-float = "4.2.0"
-tap = "1.0.1"
+bevy = { version = "0.15.0-rc.3", default-features = false }
+ordered-float = "4.2"
+tap = "1.0"
 
 [dev-dependencies]
 bevy = { version = "0.14", default-features = false, features = ["bevy_asset", "bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }
-criterion = "0.5.0"
-fastrand = "1.9.0"
+criterion = "0.5"
+fastrand = "2.2"
 
 [[bench]]
 name = "benchmark"
